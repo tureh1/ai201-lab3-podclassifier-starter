@@ -44,8 +44,9 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Formula:**
 
 ```
-[blank — write out the accuracy formula in plain English.
- What counts as "correct"? What do you divide by?]
+Accuracy = number of correct predictions divided by the total number of predictions.
+
+A prediction counts as correct when the predicted label exactly matches the ground-truth label at the same index.
 ```
 
 ---
@@ -53,10 +54,11 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Step-by-step logic:**
 
 ```
-[blank — describe the steps your code will take.
- 1. ...
- 2. ...
- 3. ...]
+1. If the input lists are empty, return 0.0.
+2. Loop through predictions and ground_truth together using zip().
+3. Count how many predicted labels exactly match the corresponding ground-truth labels.
+4. Divide the number of correct predictions by the total number of ground-truth labels.
+5. Return the result as a float between 0.0 and 1.0.
 ```
 
 ---
@@ -64,7 +66,9 @@ Returns the fraction of predictions that exactly match the ground truth.
 **Edge case — what if both lists are empty?**
 
 ```
-[blank — what should the function return? Why?]
+Return 0.0.
+
+If there are no examples to evaluate, there is no meaningful accuracy score. Returning 0.0 avoids dividing by zero and keeps the evaluation report from crashing.
 ```
 
 ---
@@ -75,7 +79,16 @@ Returns the fraction of predictions that exactly match the ground truth.
 predictions  = ["interview", "solo", "panel", "interview"]
 ground_truth = ["interview", "solo", "solo",  "narrative"]
 
-[blank — what does compute_accuracy() return for these inputs? Show your work.]
+Compare each pair:
+1. interview == interview → correct
+2. solo == solo → correct
+3. panel != solo → incorrect
+4. interview != narrative → incorrect
+
+Correct predictions = 2
+Total predictions = 4
+
+compute_accuracy() returns 2 / 4 = 0.5
 ```
 
 ---
@@ -113,8 +126,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **What does "correct" mean for a given class?**
 
 ```
-[blank — be precise. When does an episode count as correctly classified
- for the "interview" class, for example?]
+For a given class, an episode counts as correct only if its ground-truth label is that class and the predicted label matches it exactly.
+
+For example, for the "interview" class, an episode is correct only when ground_truth is "interview" and prediction is also "interview".
 ```
 
 ---
@@ -122,7 +136,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **What does "total" mean for a given class?**
 
 ```
-[blank — is "total" the total number of predictions, or something more specific?]
+Total means the number of episodes whose ground-truth label is that class.
+
+It is not the total number of predictions overall. For example, the total for "panel" is only the number of test episodes that are actually labeled "panel" in the ground truth.
 ```
 
 ---
@@ -130,12 +146,15 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **Step-by-step logic:**
 
 ```
-[blank — describe the steps your code will take.
- 1. Initialize ...
- 2. Loop over ...
- 3. For each pair (predicted, truth) ...
- 4. After the loop ...
- 5. Return ...]
+1. Initialize a results dictionary with one entry for each label in VALID_LABELS.
+2. Each label starts with correct = 0, total = 0, and accuracy = 0.0.
+3. Loop through predictions and ground_truth together.
+4. For each pair, use the ground-truth label to decide which class bucket to update.
+5. Add 1 to that class's total.
+6. If the prediction exactly matches the ground-truth label, also add 1 to that class's correct count.
+7. After the loop, compute accuracy for each class as correct / total.
+8. If a class has total == 0, leave its accuracy as 0.0.
+9. Return the full results dictionary.
 ```
 
 ---
@@ -143,8 +162,9 @@ A `dict` keyed by label. Each value is a dict with three keys:
 **Edge case — what if a class has no examples in ground_truth (total == 0)?**
 
 ```
-[blank — what should accuracy be set to? Why?
- Hint: look at the docstring in evaluate.py.]
+Set that class's accuracy to 0.0.
+
+If total == 0, there is no denominator, so the function should not divide by zero. Returning 0.0 keeps the evaluation report stable and makes it clear that there were no examples for that class.
 ```
 
 ---
@@ -155,26 +175,22 @@ A `dict` keyed by label. Each value is a dict with three keys:
 predictions  = ["interview", "interview", "solo", "panel", "panel"]
 ground_truth = ["interview", "solo",      "solo", "panel", "narrative"]
 
-[blank — fill in the per-class results table below]
-
 label       correct  total  accuracy
 ----------  -------  -----  --------
-interview   [blank]  [blank]  [blank]
-solo        [blank]  [blank]  [blank]
-panel       [blank]  [blank]  [blank]
-narrative   [blank]  [blank]  [blank]
+interview   1        1      1.0
+solo        1        2      0.5
+panel       1        1      1.0
+narrative   0        1      0.0
 ```
 
 ---
 
 ## Reflection questions (discuss at the checkpoint)
 
-1. Your overall accuracy might be decent even if one class has very low accuracy.
-   Why is per-class accuracy a more informative metric than overall accuracy alone?
+1. Overall accuracy can hide weak classes because one class may be doing very well while another is doing badly. Per-class accuracy is more informative because it shows whether the classifier understands each label boundary separately. For example, a classifier could have decent overall accuracy but still fail on most panel episodes.
 
-2. If `panel` episodes consistently get misclassified as `interview`, what does
-   that tell you about your training labels or your prompt?
+2. If `panel` episodes consistently get misclassified as `interview`, that suggests the prompt or training labels are not clearly showing the difference between multi-guest roundtables and host-guest conversations. I would add or improve examples that clearly show panel episodes as speakers discussing as equals.
 
-3. You labeled 20 training episodes and evaluated on 20 test episodes (5 per class).
-   How might the evaluation results change if you had labeled 100 training episodes?
-   What if you had 200 test episodes?
+3. If I labeled 100 training episodes, the classifier might improve because the few-shot prompt would have more examples of edge cases and a stronger signal for each label. If I had 200 test episodes, the evaluation would be more reliable because the accuracy would be based on a larger and more diverse held-out set.
+
+   
