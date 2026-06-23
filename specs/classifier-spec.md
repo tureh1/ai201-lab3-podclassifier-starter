@@ -91,10 +91,10 @@ the format below:" followed by the output format you chose.
 **What output format should you request from the LLM?**
 
 ```
-[blank — you need to parse the response in classify_episode(). What format
-makes parsing reliable? Think about: a single label on its own line?
-A structured format like "Label: X / Reasoning: Y"? JSON?
-What are the tradeoffs?]
+LABEL: <interview | solo | panel | narrative>
+REASONING: <one brief explanation>
+
+I chose this format because it is structured enough to parse reliably, but still readable. The label appears after `LABEL:`, so `classify_episode()` can extract that line, normalize it to lowercase, and validate it against `VALID_LABELS`. The reasoning appears after `REASONING:`, so the app can display a short explanation without mixing it into the label.
 ```
 
 ---
@@ -102,8 +102,11 @@ What are the tradeoffs?]
 **Edge cases to handle in the prompt:**
 
 ```
-[blank — what if labeled_examples is empty? What if the description is very
-short? How does your prompt handle these?]
+If `labeled_examples` is empty, the prompt should still include the taxonomy definitions and ask the model to classify using those rules. However, the classifier will be stronger when labeled examples are available because they show the model how the taxonomy is applied.
+
+If the description is very short, the prompt should still ask for the best label based on the structural clues available. The model should classify by format, not topic or tone.
+
+The prompt should also remind the model to return exactly one of the valid labels: `interview`, `solo`, `panel`, or `narrative`.
 ```
 
 ---
@@ -159,9 +162,14 @@ Extract the response text from:
 **Step 3 — Parse the response:**
 
 ```
-[blank — how do you extract the label and reasoning from the LLM's text output?
-What string operations or parsing logic do you need?
-This depends on the output format you chose in build_few_shot_prompt.]
+Because the requested output format is:
+
+LABEL: <label>
+REASONING: <reasoning>
+
+I will split the response into lines and look for a line that starts with `LABEL:`. I will remove the `LABEL:` prefix, strip whitespace, remove simple markdown formatting like backticks or asterisks, and convert the result to lowercase.
+
+For the reasoning, I will look for a line that starts with `REASONING:`. I will remove the prefix and keep the rest of the text as the explanation. If no reasoning line is found, I will use a fallback message like `"No reasoning provided."`
 ```
 
 ---
@@ -169,8 +177,11 @@ This depends on the output format you chose in build_few_shot_prompt.]
 **Step 4 — Validate the label:**
 
 ```
-[blank — what do you do if the LLM returns a label that isn't in VALID_LABELS?
-What should label be set to?]
+After parsing the label, I will check whether it is in `VALID_LABELS`.
+
+If the label is one of `interview`, `solo`, `panel`, or `narrative`, I will return it.
+
+If the LLM returns something invalid, such as `story`, `conversation`, `Interview`, or a sentence instead of a label, I will normalize what I can. If it still does not match `VALID_LABELS`, I will set the label to `"unknown"` instead of crashing.
 ```
 
 ---
@@ -178,9 +189,15 @@ What should label be set to?]
 **Step 5 — Handle errors gracefully:**
 
 ```
-[blank — what could go wrong? (Network error? Unparseable response?)
-What should the function return if something fails?
-Hint: the evaluation loop runs 20 calls — one bad response shouldn't crash everything.]
+Possible errors include a Groq API/network error, a missing API key, an empty response, or a response that does not follow the requested format.
+
+If something fails, `classify_episode()` should return a dictionary with:
+
+```python
+{
+    "label": "unknown",
+    "reasoning": "Classification failed: <error message>"
+}
 ```
 
 ---
@@ -213,24 +230,26 @@ any labels you're unsure about. Annotation quality is part of the lab.
 **Test: what does the raw LLM response look like for one episode?**
 
 ```
-Episode tested: [title]
-Raw response text: [paste it here]
+Episode tested: The Aral Sea: A Disaster in Four Acts
+Raw response text: 
+LABEL: narrative
+REASONING: The episode is structured as a reported story with a clear arc, using external sources and documentary-style production rather than a host-guest conversation.
 ```
 
 **How did you parse the label out of the response?**
 
 ```
-[describe the string operations — strip, split, lower, etc.]
+I searched for the line that starts with LABEL:, removed the prefix, stripped whitespace and simple markdown characters, converted the label to lowercase, and checked it against VALID_LABELS.
 ```
 
 **Did any episodes return `"unknown"`? If so, why?**
 
 ```
-[yes / no — if yes, what did the raw response look like?]
+No. The test examples returned valid labels after parsing and validation
 ```
 
 **One thing about the output format that surprised you:**
 
 ```
-[your answer here]
+The structured LABEL: and REASONING: format made parsing easier than trying to extract a label from a full paragraph. Even if the model adds extra explanation, the label line is still easy to locate.
 ```
